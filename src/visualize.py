@@ -10,8 +10,6 @@ def out_generated_title(iter, model):
         pred_titles = []
         i = 1
         for batch in iter:
-            abstract = batch[0][0]
-            title = batch[0][1]
             with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
                 pred_title = model.predict(batch)
             abstracts.append(abstract)
@@ -28,6 +26,7 @@ def out_generated_title(iter, model):
         dst = Path(preview_dir + '/epoch{0}.txt'.format(trainer.updater.epoch))
         
         with dst.open(mode='w', encoding='utf-8') as fout:
-            for p, t, a in zip(pred_titles, titles, abstracts):
-                fout.write('{0} : {1} : {2}\n'.format(''.join(p), t, a))
+            for pb, tb, ab in zip(pred_titles, titles, abstracts):
+                for p, t, a in zip(pb, tb, ab):
+                    fout.write('{0} : {1} : {2}\n'.format(p, t, a))
     return make_title

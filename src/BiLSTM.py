@@ -8,7 +8,7 @@ from chainer import Variable, optimizers, Chain, iterators, training
 from chainer.training import extensions
 import chainer.functions as F
 import chainer.links as L
-import cupy as cp
+#import cupy as cp
 
 
 def make_minibatch(batch, mecabTagger, vocab):
@@ -311,49 +311,36 @@ class seq2seq(Chain):
         '''
         # 勾配の初期化
         self.reset()
-        # abstを抜き出す
-        abstracts = [b[0] for b in batch]
-        # 日本語をIDに変更
-        absts = []
-        for abstract in abstracts:
-            node = self.mecabTagger.parseToNode(abstract)
-            node = node.next
 
-            abst = []
-            while node:
-                word = node.surface
-                node = node.next
-                wid = self.vocab[word]
-                abst.append(wid)
-            absts.append(abst)
-
-            node = self.mecabTagger.parseToNode(title)
-            node = node.next
-
+        abstracts, titles = make_minibatch(batch, self.mecabTagger, self.vocab)
         # np or cp に変更
-        x_list = [self.AAA.array(x, dtype='int32') for x in absts]
+        x_list = [self.ARR.array(x, dtype='int32') for x in abstracts]
+        #t_list = [self.ARR.array(x, dtype='int32') for x in titles]
         # encode
         self.encode(x_list)
-        # <eos>をDecoderに入れる準備
-        y = Variable(ARR.array([self.vocab["<EOS>"]
-                                for _ in range(batch_size)], dtype='int32'))
-        outs = []
-        # ループ数のカウンタを初期化
-        loop = 0
-        # <EOS>が出るか30単語出力したら終了
-        while(wid != self.vocab["<EOS>"]) and (loop <= 30):
-            # 1語ずつdecode
-            y = self.decode(y)
+        # lossの初期化
+        loss = Variable(self.ARR.zeros((), dtype='float32'))
+        # <EOS>をデコーダーに読み込ませる準備
+        #t = Variable(self.ARR.array([self.vocab["<EOS>"] for _ in range(self.batch_size)], dtype='int32'))
+        t = [Variable(self.ARR.array([self.vocab["<EOS>"]], dtype='int32')) for _ in range(self.batch_size)]
+        # Decoderの計算
+        for w in titles:
+            # decode
+            y = self.decode(t)
+            # yを入力の形に整形
+            t = [Variable(self.ARR.array([np.argmax(d)])) for d in y.data]
+            # argmaxでidを取りwordに変換
+            if 'outs' in locals():
+                outs = np.vstack((outs, [[np.argmax(d) for d in y.data]]))
+            else:
+                outs = np.array([[np.argmax(d) for d in y.data]])
+        # 日本語に直す前に転置
+        outs = outs.T
+        pred_titles = []
+        for out in outs:
+            pred_title = ''
+            for o in out:
+                pred_title += self.id2wd(o)
+            pred_titles.append(pred_title)
+        return pred_titles
 
-            wid = np.argmax(F.softmax(self.W(h)).data[0])
-            out = [self.id2wd[wid]]
-            loop = 0
-            while(wid != self.vocab["<EOS>"]) and (loop <= 30):
-                x_k = self.embedx(
-                    Variable(np.array([wid], dtype=np.int32)))
-                h = self.H(x_k)
-                wid = np.argmax(F.softmax(self.W(h)).data[0])
-                out.append(self.id2wd[wid])
-                loop += 1
-            outs.append(out)
-        return outs

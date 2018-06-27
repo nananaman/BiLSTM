@@ -32,9 +32,11 @@ def main():
         np.save('lavel', random_lavel)
     train_val, test = np.split(random_lavel, [la - 100])
     train, valid = np.split(train_val, [int(la * 0.8)])
+    '''
     print('Training dataset size: ', len(train))
     print('Validation dataset size: ', len(valid))
     print('Testing dataset size: ', len(test))
+    '''
 
     # イテレータ作成
     BATCH_SIZE = 40
@@ -53,6 +55,7 @@ def main():
     FLAG_GPU = 1
     if FLAG_GPU:
         model.to_gpu(0)
+
     optimizer = optimizers.Adam()
     optimizer.setup(model)
     optimizer.add_hook(chainer.optimizer.GradientClipping(5))
@@ -81,14 +84,45 @@ def main():
     trainer.extend(extensions.ProgressBar(update_interval=10))
     trainer.extend(extensions.PlotReport(
         ['model/loss', 'val/loss'], x_key='epoch', file_name='loss.png'))
-    '''
     trainer.extend(
         out_generated_title(
             test_iter, model
         ), trigger=display_interval)
-    '''
 
-    trainer.run()
+    # モデルロード
+    MODEL_PATH = './result/snapshot_epoch-45'
+    chainer.serializers.load_npz(MODEL_PATH, trainer)
+
+    print('Please input a sentence!')
+    S = input()
+    while(S != 'c'):
+        node = mecabTagger.parseToNode(S)
+        node = node.next
+
+        S_split = []
+        S_split_id = []
+        while node:
+            word = node.surface
+            node = node.next
+            S_split.append(word)
+            if word not in vocab:
+                print('ERROR! {} is not in my vocabulary'.format(word))
+            else:
+                wid = vocab[word]
+                S_split_id.append(wid)
+        S_split_id = [S_split_id]
+        
+        # predict
+        S_predict = model.predict(S_split_id, interactive=True)
+
+        #print(S_split)
+        print(S_predict)
+        print('Please input a sentence!')
+        S = input()
+                
+
+    #trainer.run()
+
 
 if __name__ == '__main__':
     main()

@@ -13,7 +13,7 @@ class Updater(chainer.training.StandardUpdater):
         optimizer = self.get_optimizer('model')
         
         batch = self.get_iterator('main').next()
-        optimizer.target.zerograds()
+        optimizer.target.cleargrads()
         loss = self.model(batch)
         chainer.report({'loss': loss}, self.model)
         loss.backward()

@@ -12,6 +12,8 @@ class PreprocessedDataset(chainer.dataset.DatasetMixin):
         return len(self.lavel)
 
     def get_example(self, i):
-        abstract = self.articles[i]['abstract']
-        title = self.articles[i]['title']
+        #abstract = self.articles[i]['abstract']
+        #title = self.articles[i]['title']
+        abstract = self.articles[i][0]
+        title = self.articles[i][1]
         return abstract, title
